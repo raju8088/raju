@@ -7,14 +7,20 @@ import { requirePermission, AuthorizationError } from '@/lib/permissions/rbac';
 import { VoiceProviderError } from '@/lib/providers/voice/omnidimension/omnidimension.errors';
 import { ZodError } from 'zod';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const ctx = await getOrganizationContext();
     if (!ctx) return errorResponse('UNAUTHORIZED', 'Authentication required', 401);
     requirePermission(ctx, 'AGENT_VIEW');
 
-    const agents = await agentService.listAgents(ctx.organizationId);
-    return successResponse(agents);
+    const searchParams = req.nextUrl?.searchParams;
+    const forceRefresh = searchParams?.get('refresh') === 'true';
+
+    const agents = await agentService.listAgents(ctx.organizationId, { forceRefresh });
+    return successResponse({
+      agents,
+      total: agents.length,
+    });
   } catch (error) {
     if (error instanceof AuthorizationError) {
       return errorResponse(error.code, error.message, error.statusCode);

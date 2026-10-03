@@ -1,23 +1,49 @@
-# VoiceNuvo — Phase 3: OmniDimension Integration + Voice Agents + Knowledge Base + Phone Numbers
+# VoiceNuvo — Multi-Tenant AI Voice SaaS Platform
 
-> Multi-tenant AI Voice SaaS Platform Control Plane. Built with Next.js 16 (App Router + Turbopack), React 19, TypeScript, Tailwind CSS, persistent PostgreSQL / Supabase with Row Level Security (RLS), and OmniDimension AI Voice Engine Integration.
+> Enterprise AI Voice Calling, Bulk Campaigns, CRM Lead Ingestion, and Multi-Tenant SaaS Monetization Engine. Built with Next.js 16 (App Router + Turbopack), React 19, TypeScript, Vanilla CSS design system, PostgreSQL (pg.Pool / PGlite) with Row-Level Security (RLS), OmniDimension Voice Engine, Meta Lead Ads, and Razorpay Payments.
 
 ---
 
-## Phase 3 Status: COMPLETED & FULLY VERIFIED
+## Platform Status: PHASE 8 PRODUCTION HARDENED (`CONDITIONALLY_READY`)
 
-- **Voice Provider Abstraction**: VoiceNuvo serves as the branded SaaS control plane while OmniDimension serves as the operational voice engine via the official `@omnidim-ai/sdk@0.6.0`.
-- **Zero Secret Exposure**: OmniDimension API keys are strictly server-side, encrypted at rest using authenticated AES-256-GCM, and masked in all UI responses (`••••••••3456`). Secrets are never returned in API payloads or logged.
-- **Organization-Scoped Provider Connections**: Each organization manages its own OmniDimension provider connection context with live connection testing and automatic latency verification.
-- **Safe Key Replacement**: If replacement with a new API key fails verification, the existing working connection remains active and intact (`"New API connection failed — old connection is still active"`).
-- **Voice Agents Control Plane**: Full agent management interface supporting creation, configuration (welcome greeting, acoustic voice, LLM reasoning model, speech speed, web search, voicemail, context blocks), live editing, deletion, and version control (snapshots, version restoration, and diffing).
-- **Knowledge Base Module**: Organization document repository supporting file uploads, quota capability checks, instant attachment/detachment to agents, and deletion.
-- **Phone Numbers & Telephony Inventory**: Phone number catalog supporting live region/carrier search, one-click purchase with idempotency protection, inbound agent routing, detachment, and number release.
-- **Provider Catalog & Caching**: Read-only catalog service exposing LLM reasoning engines, STT transcription, TTS synthesis, and available acoustic voices with short-lived TTL caching.
-- **Strict Tenant Isolation & RBAC**: Every provider resource mapping is isolated per organization in PostgreSQL with RLS policies. Role permissions enforce `VOICE_PROVIDER_MANAGE`, `AGENT_MANAGE`, `KNOWLEDGE_BASE_MANAGE`, and `PHONE_NUMBER_MANAGE`.
-- **Structured Audit Logging**: Comprehensive audit trail recorded on all provider lifecycle events (`PROVIDER_CONNECTION_CREATED`, `AGENT_CREATED`, `PHONE_NUMBER_PURCHASED`, `KNOWLEDGE_FILE_ATTACHED`, etc.).
-- **Strict Phase Boundaries Maintained**: Phase 4 (calling/transcripts), Phase 5 (campaigns), Phase 6 (CRM), and Phase 7 (billing) intentionally excluded until their respective phases.
-- **Automated Verification**: 91 passing tests (2 skipped cleanly for optional live provider keys), 0 TypeScript errors, 0 ESLint warnings/errors, and successful Next.js 16 production build.
+- **Full Vitest Test Suite:** **255/255 passed** across 24 test suites (0 failures, 0 skipped)
+- **TypeScript:** **0 errors** (`npx tsc --noEmit` passes cleanly without build prerequisites)
+- **ESLint:** **0 errors / 0 warnings** (`npm run lint` clean)
+- **Next.js Production Build:** **PASS** (70 statically and dynamically optimized routes compiled successfully)
+- **Launch Status:** **CONDITIONALLY_READY** — Code, schema, migrations, guardrails, and test suites fully verified; production deployment requires remote database provisioning and provider secret configuration.
+
+---
+
+## Phase Implementation & Verification Checklist
+
+- [x] **Phase 1 — Foundation & Core Multi-Tenancy**
+  - Next.js 16 App Router architecture, RBAC (`MAIN_ADMIN`, `ORG_ADMIN`, `EMPLOYEE`), session security, audit logs.
+- [x] **Phase 2 — Database Persistence, Security & RLS**
+  - Dual PostgreSQL driver (`pg.Pool` remote / embedded `pglite` disk), zero in-memory fallback, engine-level RLS policies.
+- [x] **Phase 2.1 & 2.2 — PostgreSQL / Supabase Remote Verification**
+  - SSL negotiation, fail-fast production startup validator, schema migrations (001–004), driver health probe.
+- [x] **Phase 3 & 3.1 — OmniDimension Voice Integration & Live Provider Testing**
+  - Provider connection vault with AES-256-GCM encryption at rest, voice agent lifecycle & version control, knowledge base file attachments, phone number search/purchase inventory, provider catalog caching.
+- [x] **Phase 4 — Calling Engine & Telemetry**
+  - Single call dispatch, webhook callbacks, live call status tracking, duration and billable minute calculations, call recordings & transcripts.
+- [x] **Phase 5 — Bulk Calling & Campaign Engine**
+  - Multi-tenant campaigns, calling window scheduler, concurrency limiter, contact list processor, real-time campaign metrics.
+- [x] **Phase 6 — CRM, Lead Management & Meta Lead Ads**
+  - Custom lead pipelines, instant lead capture, Meta Graph API webhook ingestion with HMAC-SHA256 verification, lead assignment, call/campaign correlation, CSV import/export.
+- [x] **Phase 7 — Billing, Monetization & Razorpay Integration**
+  - Multi-tenant wallets, prepaid credits, usage rating engine, plan/subscription tiers, Razorpay payment verification, webhook idempotency, PDF invoices.
+- [x] **Phase 8 — Production Hardening & Launch Readiness**
+  - IDOR protection tests, wallet overdraft prevention, webhook replay guardrails, error sanitization, PII masking, production runbook (`PRODUCTION_RUNBOOK.md`), CI workflow (`.github/workflows/ci.yml`), 255/255 Vitest suite pass.
+
+---
+
+## Git Commit History & Milestone Tracking
+
+| Commit | Description | Scope |
+| :--- | :--- | :--- |
+| `b30ee6b` | `feat: VoiceNuvo Phase 1-7 complete implementation` | Complete core product (Auth, DB, OmniDimension, Calling, Campaigns, CRM, Billing) |
+| `a56f2d7` | `feat: Phase 8 - Production hardening, security, CI, runbooks` | Production security suites, GitHub Actions CI, operations runbook, security headers |
+| `242e1d9` | `fix(tests): resolve remaining 2 tests for full 255/255 Vitest suite pass` | Resolved remaining infrastructure tests to achieve 255/255 Vitest pass |
 
 ---
 
@@ -27,39 +53,35 @@
 src/
 ├── app/
 │   ├── (auth)/
-│   │   ├── login/page.tsx               # Login page with demo selector & credentials form
-│   │   └── register/page.tsx            # Company registration & org bootstrap
-│   ├── dashboard/
-│   │   ├── layout.tsx                   # Protected dashboard layout
-│   │   ├── page.tsx                     # Overview & future module roadmap cards
-│   │   ├── organizations/page.tsx       # Main Admin organization management
-│   │   ├── users/page.tsx               # Team & member management
-│   │   └── settings/page.tsx            # Account, organization, & security settings
-│   ├── api/
-│   │   ├── auth/                        # login, register, logout, session, switch-org
-│   │   ├── organizations/               # list, create, get, update, suspend
-│   │   ├── users/                       # list, invite, update member, remove member
-│   │   └── health/                      # Live DB probe & health status
-│   ├── page.tsx                         # Landing page with entry CTA
-│   └── globals.css
-├── components/
-│   ├── ui/                              # Button, Card, Input, Badge, Modal
-│   └── layout/                          # DashboardSidebar, DashboardHeader, OrgSwitcher
+│   │   ├── login/page.tsx               # Session login with role switching
+│   │   └── register/page.tsx            # Company registration & tenant bootstrap
+│   ├── dashboard/                       # Protected SaaS workspace
+│   │   ├── admin/billing/               # Platform-wide revenue & reconciliation audit
+│   │   ├── admin/plans/                 # SaaS subscription plan management
+│   │   ├── agents/                      # Voice agents & versioning
+│   │   ├── billing/usage/               # Tenant wallet, invoices, transactions
+│   │   ├── calls/                       # Call logs, recordings & transcripts
+│   │   ├── campaigns/                   # Bulk outbound campaign engine
+│   │   ├── contacts/                    # Contact books & lists
+│   │   ├── knowledge-base/              # Agent knowledge documents
+│   │   ├── leads/                       # CRM lead board & timeline
+│   │   ├── organizations/               # Main Admin multi-tenant management
+│   │   ├── phone-numbers/               # Telephony inventory & routing
+│   │   ├── settings/                    # Integration keys, Meta & OmniDimension
+│   │   └── users/                       # Team members & invitations
+│   ├── api/                             # REST API endpoints (70+ routes)
+│   ├── globals.css                      # Design tokens & core styling
+│   └── layout.tsx                       # Root layout (self-contained types)
+├── components/                          # UI components & dashboard navigation
 ├── lib/
-│   ├── auth/                            # Session cookies, JWT-style HMAC signature, token verification
-│   ├── db/                              # Universal DB client, migrations runner, repository exports
-│   │   ├── client.ts                    # PostgreSQL driver (pg.Pool / PGlite disk storage)
-│   │   ├── migrations/                  # 001_schema, 002_rls, 003_seed, 004_audit_security
-│   │   └── repositories/                # organization, user, audit, rate-limit repositories
-│   ├── permissions/                     # Roles, Permissions, RBAC & Tenant assertions
-│   ├── validation/                      # Zod schemas (Organization, User, Auth)
-│   └── utils/                           # API responses, structured logger, slug, crypto
-├── services/
-│   ├── auth.service.ts                  # Authentication & registration transaction service
-│   ├── organization.service.ts          # Tenant isolation & organization transaction service
-│   └── user.service.ts                  # Membership & role assignment transaction service
-├── types/                               # Strict shared TypeScript definitions
-└── proxy.ts                             # Next.js 16 request interceptor / route protector
+│   ├── auth/                            # Session cookies & cryptographic tokens
+│   ├── config/env.ts                    # Startup validation & fail-fast production guards
+│   ├── db/                              # DB driver, migrations runner (001–009), repositories
+│   ├── permissions/                     # RBAC & bidirectional tenant isolation
+│   ├── providers/                       # OmniDimension, Meta Graph API, Razorpay
+│   └── utils/                           # AES-256-GCM encryption, structured logger, API responses
+├── services/                            # Domain services (Calling, CRM, Campaigns, Billing, Wallets)
+└── proxy.ts                             # Next.js route protection & webhook bypass
 ```
 
 ---
@@ -78,35 +100,24 @@ Password for all pre-seeded development accounts: `Password123!`
 
 ---
 
-## Running the Project
+## Verification & Development Commands
 
 ```bash
 # 1. Install dependencies
 npm install
 
-# 2. Run automated tests (70/70 tests passing across 12 suites)
+# 2. Run full test suite (255/255 tests passing across 24 suites)
 npx vitest run
 
-# 3. Run typecheck & linter
+# 3. Run typecheck (clean without prior build step)
 npx tsc --noEmit
+
+# 4. Run linter
 npm run lint
 
-# 4. Run Next.js production build
+# 5. Run Next.js production build
 npm run build
 
-# 5. Start development server
+# 6. Start development server
 npm run dev
 ```
----
-
-## Roadmap
-
-- [x] **Phase 1 — Foundation** (Multi-tenancy, RBAC, Auth, Architecture, DB schema, UI shell)
-- [x] **Phase 2 — Production Database + Authentication + Multi-Tenant Security Hardening** (PostgreSQL persistence on disk, zero in-memory fallback, scrypt + HMAC auth, RLS, ACID transactions, audit logs, abuse protection)
-- [x] **Phase 2.1 — Production PostgreSQL + Supabase + RLS Verification** (Production fail-fast startup validator, pg.Pool remote pooling & SSL, PostgreSQL RLS engine-level enforcement, SEED_DEMO_DATA=false safety, direct SQL tenant test, observable health check, 70/70 tests passing)
-- [ ] **Phase 3 — Voice Engine** (OmniDimension integration, AI Agents, Phone Numbers)
-- [ ] **Phase 4 — Calling** (Outbound calls, live call audio, recordings, transcripts)
-- [ ] **Phase 5 — Campaigns** (Bulk call campaigns, contact lists, concurrency control)
-- [ ] **Phase 6 — CRM & Leads** (Instant lead qualification, custom CRM pipelines)
-- [ ] **Phase 7 — Billing** (Razorpay integration, wallet credits, per-minute billing)
-- [ ] **Phase 8 — Production Hardening** (Webhooks, audit logs, monitoring)

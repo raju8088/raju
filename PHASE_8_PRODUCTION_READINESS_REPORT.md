@@ -68,24 +68,73 @@ Build:       Next.js 16.3.8 Turbopack — 0 errors, 70 routes compiled
 
 ---
 
-## Secret Scan Results
+## Secret Scan Results (Gitleaks v8.30.1)
 
-| Secret Type | Location | Status |
-|-------------|----------|--------|
-| OmniDimension API Key | `.env` (gitignored) | ⚠️ KEY PRESENT IN LOCAL .env — ROTATE REQUIRED |
-| OmniDimension API Key | `src/**` (source) | ✅ NOT FOUND |
-| OmniDimension API Key | `tests/**` | ✅ NOT FOUND |
-| Razorpay keys | `src/**`, `tests/**` | ✅ NOT FOUND |
-| Meta tokens | `src/**`, `tests/**` | ✅ NOT FOUND |
-| Database URLs with passwords | `src/**`, `tests/**` | ✅ NOT FOUND |
-| `SESSION_SECRET` default value | `src/lib/config/env.ts` | ✅ Development fallback only — rejected in production |
-| Encryption key | `src/**`, `tests/**` | ✅ NOT FOUND |
+> ❌ **SCAN RESULT: FAILED — SECRETS / MOCK TOKENS DETECTED**
+>
+> A real secret scan was executed using **Gitleaks v8.30.1** on the repository. The scan detected **5 findings** across the commit history and working tree.
+> The previously used development key in `.env` must be treated as compromised and rotated immediately.
 
-> ⚠️ **CRITICAL ACTION REQUIRED:** The `.env` file contains a real OmniDimension API key
-> (`yFLgI6KFSXoZiD0ARWGNlf7tzbjUEKlPyJwh19JgtsU`). This key was present during development.
-> `.env` is gitignored and was NOT committed to the repository (verified).
-> However, the key should be treated as potentially exposed and rotated before production launch.
-> **Rotate the OmniDimension API key in your OmniDimension Dashboard before going live.**
+### Raw Gitleaks Output
+
+```text
+    ○
+    │╲
+    │ ○
+    ○ ░
+    ░    gitleaks
+
+Finding:     NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Secret:      eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+RuleID:      generic-api-key
+Entropy:     4.419391
+File:        .env.example
+Line:        25
+Commit:      b30ee6b309d6e54303bd9dcd536192607c606b95
+
+Finding:     SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Secret:      eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+RuleID:      generic-api-key
+Entropy:     4.419391
+File:        .env.example
+Line:        26
+Commit:      b30ee6b309d6e54303bd9dcd536192607c606b95
+
+Finding:     ...NCRYPTION_SECRET || process.env.SESSION_SECRET || 'voicenuvo-default-secret-key-32chars'
+Secret:      voicenuvo-default-secret-key-32chars
+RuleID:      generic-api-key
+Entropy:     4.104244
+File:        src/lib/utils/encryption.ts
+Line:        8
+Commit:      b30ee6b309d6e54303bd9dcd536192607c606b95
+
+Finding:     idempotencyKey: 'idemp-test-12345'
+Secret:      idemp-test-12345
+RuleID:      generic-api-key
+Entropy:     3.625000
+File:        tests/phase3-omnidimension.test.ts
+Line:        371
+Commit:      b30ee6b309d6e54303bd9dcd536192607c606b95
+
+Finding:     ...asked = maskApiKey('sk_live_1234567890abcdef');
+Secret:      sk_live_1234567890abcdef
+RuleID:      stripe-access-token
+Entropy:     4.418296
+File:        tests/phase3-omnidimension.test.ts
+Line:        58
+Commit:      b30ee6b309d6e54303bd9dcd536192607c606b95
+
+11:29AM INF 3 commits scanned.
+11:29AM INF scanned ~2105404 bytes (2.11 MB) in 297ms
+11:29AM WRN leaks found: 5
+```
+
+### Analysis of Findings & Remediation
+
+1. **`src/lib/utils/encryption.ts` (Fixed):** Hardcoded fallback `'voicenuvo-default-secret-key-32chars'` removed. `getEncryptionKey()` now strictly throws if `ENCRYPTION_SECRET` is unset.
+2. **`.env.example` (Template JWT placeholders):** Example JWT tokens flagged by entropy heuristics; these are documentation placeholders but should use synthetic non-JWT strings.
+3. **`tests/phase3-omnidimension.test.ts` (Mock values):** Test fixture strings (`sk_live_1234567890abcdef`, `idemp-test-12345`) flagged by generic rules.
+4. **Historical OmniDimension API Key (Compromised):** The development API key used in local `.env` must be revoked and rotated on the OmniDimension provider console before production launch. Do NOT reuse this key.
 
 ---
 
@@ -224,7 +273,7 @@ Path: /
 
 ### Security
 - [x] OmniDimension key — ROTATE REQUIRED before go-live
-- [x] Secret scan clean (source code — no hardcoded credentials)
+- [ ] Secret scan clean — FAILED (Gitleaks v8.30.1 flagged 5 historical/template findings; rotation and cleanup required)
 - [x] RLS verified (all Phase 1-7 migration policies applied)
 - [x] RBAC verified (all API routes enforce role permissions)
 - [x] IDOR tested (5/5 tenant isolation tests pass)
@@ -266,12 +315,12 @@ Path: /
 
 **`CONDITIONALLY_READY`**
 
-VoiceNuvo has passed all automated quality gates:
-- 24/24 test files pass (253 tests, 0 failures)
+VoiceNuvo quality gate status:
+- Vitest: 255/255 passed (24/24 test files, 0 skipped, 0 failures)
 - TypeScript: 0 errors
 - ESLint: 0 errors
 - Production build: Clean (70 routes, 0 errors)
-- Secret scan: No credentials in source code
+- Secret scan: FAILED (Gitleaks detected 5 findings in git history/placeholders — requires key rotation)
 - Security: Headers, RBAC, RLS, IDOR, webhook security all verified locally
 
 **Before going live, the following operator actions are mandatory:**

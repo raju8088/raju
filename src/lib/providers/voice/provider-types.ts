@@ -41,6 +41,8 @@ export interface UpdateAgentInput extends Partial<CreateAgentInput> {
 
 export interface NormalizedAgent {
   id: string; // Provider agent ID
+  provider_agent_id?: string;
+  provider?: string;
   name: string;
   status: string;
   welcomeMessage?: string;
@@ -139,6 +141,7 @@ export interface VoiceProvider {
 
   // 2. Agents
   listAgents(params?: { limit?: number; page?: number }): Promise<{ agents: NormalizedAgent[]; total: number }>;
+  listAllAgents?(): Promise<{ agents: NormalizedAgent[]; total: number; pagesFetched: number }>;
   getAgent(providerAgentId: string): Promise<NormalizedAgent>;
   createAgent(input: CreateAgentInput): Promise<NormalizedAgent>;
   updateAgent(providerAgentId: string, input: UpdateAgentInput): Promise<NormalizedAgent>;

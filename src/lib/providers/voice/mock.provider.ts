@@ -152,6 +152,31 @@ export class MockVoiceProvider implements VoiceProvider {
     };
   }
 
+  setMockAgents(agents: NormalizedAgent[]): void {
+    this.agents.clear();
+    for (const a of agents) {
+      this.agents.set(a.id, a);
+    }
+  }
+
+  clearMockAgents(): void {
+    this.agents.clear();
+  }
+
+  async listAllAgents(): Promise<{ agents: NormalizedAgent[]; total: number; pagesFetched: number }> {
+    if (this.shouldFailConnection) {
+      throw new Error(this.failureErrorMessage);
+    }
+    const list = Array.from(this.agents.values());
+    const pageSize = 150;
+    const pagesFetched = Math.max(1, Math.ceil(list.length / pageSize));
+    return {
+      agents: list.map((a) => ({ ...a })),
+      total: list.length,
+      pagesFetched,
+    };
+  }
+
   async getAgent(providerAgentId: string): Promise<NormalizedAgent> {
     const agent = this.agents.get(providerAgentId);
     if (!agent) {

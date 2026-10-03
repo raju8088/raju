@@ -24,18 +24,30 @@ import type { NormalizedAgent } from '@/lib/providers/voice/provider-types';
 export default function AgentsPage() {
   const [agents, setAgents] = useState<NormalizedAgent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const fetchAgents = async () => {
+  const fetchAgents = async (forceRefresh = false) => {
     try {
-      setLoading(true);
+      if (forceRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
-      const res = await fetch('/api/agents');
+      setSyncMessage(null);
+      const url = forceRefresh ? '/api/agents?refresh=true' : '/api/agents';
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        setAgents(data.data);
+        const list = Array.isArray(data.data) ? data.data : (data.data?.agents || []);
+        setAgents(list);
+        if (forceRefresh) {
+          setSyncMessage(`Successfully synchronized ${list.length} agent${list.length === 1 ? '' : 's'} from OmniDimension.`);
+        }
       } else {
         setError(data.error?.message || 'Failed to load agents');
       }
@@ -43,6 +55,7 @@ export default function AgentsPage() {
       setError((err as Error).message || 'Failed to connect to agent service');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -53,7 +66,8 @@ export default function AgentsPage() {
       .then((data) => {
         if (!isMounted) return;
         if (data.success) {
-          setAgents(data.data.agents || []);
+          const list = Array.isArray(data.data) ? data.data : (data.data?.agents || []);
+          setAgents(list);
         } else {
           setError(data.error?.message || 'Failed to load agents');
         }
@@ -114,12 +128,13 @@ export default function AgentsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={fetchAgents}
-            disabled={loading}
+            onClick={() => fetchAgents(true)}
+            disabled={loading || refreshing}
             className="flex items-center gap-1.5"
+            id="refresh-agents-btn"
           >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
+            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Syncing...' : 'Refresh from OmniDimension'}
           </Button>
 
           <Link href="/dashboard/agents/new">
@@ -130,6 +145,19 @@ export default function AgentsPage() {
           </Link>
         </div>
       </div>
+
+      {/* Sync Success Alert */}
+      {syncMessage && (
+        <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 flex items-center justify-between gap-3 text-sm">
+          <div className="flex items-center gap-2">
+            <Bot className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span>{syncMessage}</span>
+          </div>
+          <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-700 hover:text-emerald-900" onClick={() => setSyncMessage(null)}>
+            ✕
+          </Button>
+        </div>
+      )}
 
       {/* Error Alert */}
       {error && (
@@ -150,7 +178,7 @@ export default function AgentsPage() {
               )}
             </div>
           </div>
-          <Button size="sm" variant="outline" onClick={fetchAgents}>
+          <Button size="sm" variant="outline" onClick={() => fetchAgents(false)}>
             Retry
           </Button>
         </div>
@@ -187,13 +215,23 @@ export default function AgentsPage() {
           <div className="h-14 w-14 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 flex items-center justify-center mx-auto mb-4">
             <Bot className="h-7 w-7" />
           </div>
-          <CardTitle className="text-lg">No Voice Agents Found</CardTitle>
+          <CardTitle className="text-lg">No Voice Agents Found in OmniDimension</CardTitle>
           <CardDescription className="max-w-md mx-auto mt-1.5">
             {searchQuery
               ? 'No agents match your search filter. Try clearing the search query.'
-              : 'Create your first AI voice agent to handle inbound inquiries, automated support, and conversational workflows.'}
+              : 'No agents were found in your connected OmniDimension account. You can create a new agent here or sync existing ones from OmniDimension.'}
           </CardDescription>
-          <div className="mt-5">
+          <div className="mt-5 flex items-center justify-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchAgents(true)}
+              disabled={loading || refreshing}
+              className="inline-flex items-center gap-1.5"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh from OmniDimension
+            </Button>
             <Link href="/dashboard/agents/new">
               <Button size="sm" className="inline-flex items-center gap-1.5">
                 <Plus className="h-4 w-4" />

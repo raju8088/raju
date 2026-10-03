@@ -166,6 +166,18 @@ export class ProviderConnectionService {
       },
     });
 
+    // 4. Trigger automatic synchronization of organization agents (Sections 8, 11)
+    try {
+      const { agentService } = await import('./agent.service');
+      await agentService.syncOrganizationAgents(organizationId, actorUserId);
+    } catch (syncErr) {
+      logger.warn('agent_sync.initial_sync_failed', {
+        action: 'agent_sync.initial_sync_failed',
+        organization: { id: organizationId },
+        errorMessage: syncErr instanceof Error ? syncErr.message : String(syncErr),
+      });
+    }
+
     return this.getConnectionStatus(organizationId);
   }
 

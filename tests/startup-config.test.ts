@@ -22,6 +22,7 @@ describe('Production Startup Validation & Driver Selection', () => {
       (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
       delete process.env.DATABASE_URL;
       process.env.SESSION_SECRET = 'a-super-long-secure-random-production-secret-1234567890!';
+      process.env.ENCRYPTION_SECRET = 'a-super-long-secure-random-encryption-secret-1234567890!';
 
       expect(() => validateEnvironment()).toThrow(ConfigurationError);
       expect(() => validateEnvironment()).toThrow(/DATABASE_URL environment variable is required/);
@@ -31,6 +32,7 @@ describe('Production Startup Validation & Driver Selection', () => {
       (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
       process.env.DATABASE_URL = 'mysql://user:pass@localhost:3306/db';
       process.env.SESSION_SECRET = 'a-super-long-secure-random-production-secret-1234567890!';
+      process.env.ENCRYPTION_SECRET = 'a-super-long-secure-random-encryption-secret-1234567890!';
 
       expect(() => validateEnvironment()).toThrow(ConfigurationError);
       expect(() => validateEnvironment()).toThrow(/DATABASE_URL must start with "postgresql:\/\/" or "postgres:\/\/"/);
@@ -39,6 +41,7 @@ describe('Production Startup Validation & Driver Selection', () => {
     it('throws ConfigurationError in production if SESSION_SECRET is missing or too short', () => {
       (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
       process.env.DATABASE_URL = 'postgresql://postgres:pass@localhost:5432/postgres';
+      process.env.ENCRYPTION_SECRET = 'a-super-long-secure-random-encryption-secret-1234567890!';
       delete process.env.SESSION_SECRET;
       delete process.env.AUTH_SECRET;
 
@@ -54,25 +57,52 @@ describe('Production Startup Validation & Driver Selection', () => {
       (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
       process.env.DATABASE_URL = 'postgresql://postgres:pass@localhost:5432/postgres';
       process.env.SESSION_SECRET = 'voicenuvo-phase1-dev-session-secret-key-32chars';
+      process.env.ENCRYPTION_SECRET = 'a-super-long-secure-random-encryption-secret-1234567890!';
 
       expect(() => validateEnvironment()).toThrow(/Default development SESSION_SECRET cannot be used in production/);
+    });
+
+    it('throws ConfigurationError in production if ENCRYPTION_SECRET is missing or too short', () => {
+      (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
+      process.env.DATABASE_URL = 'postgresql://postgres:pass@localhost:5432/postgres';
+      process.env.SESSION_SECRET = 'a-super-long-secure-random-production-secret-1234567890!';
+      delete process.env.ENCRYPTION_SECRET;
+
+      expect(() => validateEnvironment()).toThrow(ConfigurationError);
+      expect(() => validateEnvironment()).toThrow(/ENCRYPTION_SECRET is required in production mode/);
+
+      // Short secret
+      process.env.ENCRYPTION_SECRET = 'short-encryption-secret';
+      expect(() => validateEnvironment()).toThrow(/ENCRYPTION_SECRET must be at least 32 characters/);
+    });
+
+    it('rejects default development ENCRYPTION_SECRET in production', () => {
+      (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
+      process.env.DATABASE_URL = 'postgresql://postgres:pass@localhost:5432/postgres';
+      process.env.SESSION_SECRET = 'a-super-long-secure-random-production-secret-1234567890!';
+      process.env.ENCRYPTION_SECRET = 'voicenuvo-default-secret-key-32chars';
+
+      expect(() => validateEnvironment()).toThrow(/Default development ENCRYPTION_SECRET cannot be used in production/);
     });
 
     it('passes validation in production when strong credentials are provided', () => {
       (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
       process.env.DATABASE_URL = 'postgresql://postgres:pass@db.supabase.co:5432/postgres';
       process.env.SESSION_SECRET = 'super-secure-production-random-token-secret-987654321!';
+      process.env.ENCRYPTION_SECRET = 'super-secure-production-random-encryption-secret-987654321!';
 
       const config = validateEnvironment();
       expect(config.isProduction).toBe(true);
       expect(config.databaseUrl).toBe('postgresql://postgres:pass@db.supabase.co:5432/postgres');
       expect(config.sessionSecret).toBe('super-secure-production-random-token-secret-987654321!');
+      expect(config.encryptionSecret).toBe('super-secure-production-random-encryption-secret-987654321!');
     });
 
     it('Test A: selects driver = postgres when in production with valid DATABASE_URL', () => {
       (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
       process.env.DATABASE_URL = 'postgresql://postgres:pass@db.supabase.co:5432/postgres';
       process.env.SESSION_SECRET = 'super-secure-production-random-token-secret-987654321!';
+      process.env.ENCRYPTION_SECRET = 'super-secure-production-random-encryption-secret-987654321!';
 
       const driver = getDatabaseDriver();
       expect(driver.type).toBe('postgres');
@@ -82,6 +112,7 @@ describe('Production Startup Validation & Driver Selection', () => {
       (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
       delete process.env.DATABASE_URL;
       process.env.SESSION_SECRET = 'super-secure-production-random-token-secret-987654321!';
+      process.env.ENCRYPTION_SECRET = 'super-secure-production-random-encryption-secret-987654321!';
 
       expect(() => getDatabaseDriver()).toThrow(ConfigurationError);
     });

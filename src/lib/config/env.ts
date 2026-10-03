@@ -4,6 +4,7 @@ export interface AppConfig {
   nodeEnv: 'development' | 'production' | 'test';
   databaseUrl?: string;
   sessionSecret: string;
+  encryptionSecret: string;
   isProduction: boolean;
   appUrl: string;
   seedDemoData: boolean;
@@ -25,6 +26,7 @@ export function validateEnvironment(): AppConfig {
   const isProduction = nodeEnv === 'production';
   const databaseUrl = process.env.DATABASE_URL?.trim();
   const sessionSecret = (process.env.SESSION_SECRET || process.env.AUTH_SECRET || '').trim();
+  const encryptionSecret = (process.env.ENCRYPTION_SECRET || '').trim();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
   const seedDemoData = process.env.SEED_DEMO_DATA === 'true';
 
@@ -70,12 +72,38 @@ export function validateEnvironment(): AppConfig {
       logger.error('config.validation_failed', { action: 'CONFIG_VALIDATE', error: err.message });
       throw err;
     }
+
+    // 3. ENCRYPTION_SECRET must be strong in production (minimum 32 characters)
+    if (!encryptionSecret) {
+      const err = new ConfigurationError(
+        'CRITICAL STARTUP ERROR: ENCRYPTION_SECRET is required in production mode.'
+      );
+      logger.error('config.validation_failed', { action: 'CONFIG_VALIDATE', error: err.message });
+      throw err;
+    }
+
+    if (encryptionSecret.length < 32) {
+      const err = new ConfigurationError(
+        'CRITICAL STARTUP ERROR: ENCRYPTION_SECRET must be at least 32 characters long for cryptographic integrity.'
+      );
+      logger.error('config.validation_failed', { action: 'CONFIG_VALIDATE', error: err.message });
+      throw err;
+    }
+
+    if (encryptionSecret.includes('voicenuvo-default-secret') || encryptionSecret.includes('32chars')) {
+      const err = new ConfigurationError(
+        'CRITICAL STARTUP ERROR: Default development ENCRYPTION_SECRET cannot be used in production.'
+      );
+      logger.error('config.validation_failed', { action: 'CONFIG_VALIDATE', error: err.message });
+      throw err;
+    }
   }
 
   return {
     nodeEnv,
     databaseUrl,
     sessionSecret: sessionSecret || 'voicenuvo-phase2-prod-session-secret-key-32chars',
+    encryptionSecret: encryptionSecret || 'voicenuvo-phase2-prod-encryption-secret-key-32chars',
     isProduction,
     appUrl,
     seedDemoData,

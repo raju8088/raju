@@ -5,7 +5,10 @@ const IV_LENGTH = 12; // Standard 96-bit IV for GCM
 const SALT = 'voicenuvo-provider-key-derivation-salt';
 
 function getEncryptionKey(): Buffer {
-  const secret = process.env.ENCRYPTION_SECRET || process.env.SESSION_SECRET || 'voicenuvo-default-secret-key-32chars';
+  const secret = process.env.ENCRYPTION_SECRET;
+  if (!secret || secret.trim().length === 0) {
+    throw new Error('ENCRYPTION_SECRET is unset. Encryption operations require an encryption secret.');
+  }
   return scryptSync(secret, SALT, 32);
 }
 

@@ -92,6 +92,64 @@ export class OmniDimensionProvider implements VoiceProvider {
     });
   }
 
+  /**
+   * Fetches all agents across all pages from OmniDimension (pagesize: 150).
+   * Follows complete pagination loop with safety cap and duplicate prevention.
+   */
+  async listAllAgents(): Promise<{ agents: NormalizedAgent[]; total: number; pagesFetched: number }> {
+    return withOmniDimension(this.apiKey, async (client) => {
+      const allAgents: NormalizedAgent[] = [];
+      const seenIds = new Set<string>();
+      const pageSize = 150;
+      const MAX_PAGES = 50; // Hard safety cap
+      let page = 1;
+      let totalRecords: number | undefined;
+
+      while (page <= MAX_PAGES) {
+        const res = await client.agents.list({
+          pagesize: pageSize,
+          pageno: page,
+        });
+
+        const bots = res.bots || [];
+        if (typeof res.total_records === 'number') {
+          totalRecords = res.total_records;
+        }
+
+        for (const b of bots) {
+          const normalized = mapSdkAgentToNormalized(b as Record<string, unknown>);
+          if (normalized.id && !seenIds.has(normalized.id)) {
+            seenIds.add(normalized.id);
+            allAgents.push(normalized);
+          }
+        }
+
+        // Break condition 1: current page contains fewer records than page size
+        if (bots.length < pageSize) {
+          break;
+        }
+
+        // Break condition 2: received all records when total_records is provided
+        if (totalRecords !== undefined && allAgents.length >= totalRecords) {
+          break;
+        }
+
+        // Break condition 3: empty page returned
+        if (bots.length === 0) {
+          break;
+        }
+
+        page++;
+      }
+
+      return {
+        agents: allAgents,
+        total: totalRecords ?? allAgents.length,
+        pagesFetched: Math.min(page, MAX_PAGES),
+      };
+    });
+  }
+
   async getAgent(providerAgentId: string): Promise<NormalizedAgent> {
     return withOmniDimension(this.apiKey, async (client) => {
       const id = Number(providerAgentId) || providerAgentId;
