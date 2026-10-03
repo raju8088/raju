@@ -3,13 +3,16 @@ export interface LogEntry {
   timestamp: string;
   action: string;
   success: boolean;
+  correlationId?: string;
   request?: {
     method?: string;
     url?: string;
     ip?: string;
+    correlationId?: string;
   };
   user?: {
     id?: string;
+    // Note: email is accepted but should be masked before logging (use maskEmail())
     email?: string;
     role?: string;
   };
@@ -22,7 +25,7 @@ export interface LogEntry {
   metadata?: Record<string, unknown>;
 }
 
-// Redact any sensitive keys
+// ─── Sensitive key redaction ───────────────────────────────────────────────────
 const SENSITIVE_KEYS = new Set([
   'password',
   'password_hash',
@@ -37,21 +40,41 @@ const SENSITIVE_KEYS = new Set([
   'cookie',
   'card',
   'credit_card',
+  'encryption_key',
+  'webhook_secret',
+  'session_secret',
+  'omnidim_api_key',
+  'razorpay_key_secret',
+  'razorpay_webhook_secret',
+  'meta_page_access_token',
+  'meta_app_secret',
+  'database_url',
+  'private_key',
 ]);
 
-function sanitize(obj: unknown): unknown {
-  if (!obj || typeof obj !== 'object') {
-    return obj;
-  }
-  if (Array.isArray(obj)) {
-    return obj.map(sanitize);
-  }
+// ─── PII masking helpers ───────────────────────────────────────────────────────
+export function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!domain) return '***';
+  return `${local.slice(0, 2)}***@${domain}`;
+}
+
+export function maskPhone(phone: string): string {
+  if (phone.length < 4) return '***';
+  return `***${phone.slice(-4)}`;
+}
+
+function sanitize(obj: unknown, depth = 0): unknown {
+  if (depth > 8) return '[DEEP_OBJECT]';
+  if (!obj || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.slice(0, 50).map((v) => sanitize(v, depth + 1));
+
   const clean: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
     if (SENSITIVE_KEYS.has(key.toLowerCase())) {
       clean[key] = '[REDACTED]';
     } else if (typeof value === 'object' && value !== null) {
-      clean[key] = sanitize(value);
+      clean[key] = sanitize(value, depth + 1);
     } else {
       clean[key] = value;
     }
@@ -59,6 +82,7 @@ function sanitize(obj: unknown): unknown {
   return clean;
 }
 
+// ─── Logger ────────────────────────────────────────────────────────────────────
 export const logger = {
   info(action: string, data?: Partial<LogEntry>) {
     const entry: LogEntry = {
@@ -67,7 +91,9 @@ export const logger = {
       action,
       success: data?.success !== false,
       ...data,
-      metadata: data?.metadata ? (sanitize(data.metadata) as Record<string, unknown>) : undefined,
+      metadata: data?.metadata
+        ? (sanitize(data.metadata) as Record<string, unknown>)
+        : undefined,
     };
     console.log(JSON.stringify(entry));
   },
@@ -79,13 +105,23 @@ export const logger = {
       action,
       success: data?.success ?? false,
       ...data,
-      metadata: data?.metadata ? (sanitize(data.metadata) as Record<string, unknown>) : undefined,
+      metadata: data?.metadata
+        ? (sanitize(data.metadata) as Record<string, unknown>)
+        : undefined,
     };
     console.warn(JSON.stringify(entry));
   },
 
   error(action: string, error: unknown, data?: Partial<LogEntry>) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const raw = error instanceof Error ? error.message : String(error);
+    // Strip paths, tokens, and stack frames from logged error messages
+    const safeMessage = raw
+      .replace(/(password|pass|secret)=[^\s&]+/gi, '$1=[REDACTED]')
+      .replace(/(:[^:@\s]+)@[\w.-]+/g, ':[REDACTED]@')
+      .replace(/Bearer\s+[a-zA-Z0-9._-]+/g, 'Bearer [REDACTED]')
+      .replace(/C:\\[^\s]+/g, '[PATH]')
+      .replace(/\/[a-z0-9_-]+(\/[a-z0-9_.-]+){2,}/gi, '[PATH]');
+
     const errorCode = (error as { code?: string })?.code || 'INTERNAL_ERROR';
 
     const entry: LogEntry = {
@@ -94,9 +130,11 @@ export const logger = {
       action,
       success: false,
       errorCode,
-      errorMessage,
+      errorMessage: safeMessage,
       ...data,
-      metadata: data?.metadata ? (sanitize(data.metadata) as Record<string, unknown>) : undefined,
+      metadata: data?.metadata
+        ? (sanitize(data.metadata) as Record<string, unknown>)
+        : undefined,
     };
     console.error(JSON.stringify(entry));
   },
